@@ -655,7 +655,7 @@ function refBetaReductionStep(t:RefLambdaTerm,choice:nat):RefLambdaTerm
             assert refLHeight(t')<refLHeight(t);
             assert refLHeight(t')==refLHeight(opened_t');
             OpeningMaintainsNumberOfRedexes(t');
-            close(refBetaReductionStep(opened_t',choice),x)
+            RefLambda(close(refBetaReductionStep(opened_t',choice),x))
         ) 
 
 }

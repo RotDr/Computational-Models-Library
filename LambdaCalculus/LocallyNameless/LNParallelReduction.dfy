@@ -198,34 +198,6 @@ lemma ParOpening(t:RefLambdaTerm, t':RefLambdaTerm, u:RefLambdaTerm, u':RefLambd
     assert refParallelReduction(opening(t,0,u), opening(t',0,u'));
 }
 
-lemma FreeVarsRemainTheSameDuringParReduction(t:RefLambdaTerm, t':RefLambdaTerm)
-    requires refParallelReduction(t,t')
-    ensures freeVarsSeq(t)==freeVarsSeq(t')
-{
-    if (refRule1(t,t'))
-    {
-
-    }
-    else
-    {
-        if (refRule2(t,t'))
-        {
-            assume false;
-        } 
-        else 
-        {
-            if (refRule3(t,t'))
-            {
-                assume false;
-            }
-            else 
-            {
-                assert refRule4(t,t');
-                assume false;
-            }
-        }
-    }
-}
 lemma ParSubstitution(t:RefLambdaTerm, t':RefLambdaTerm,
                       u:RefLambdaTerm, u':RefLambdaTerm, x:Id)
     requires refParallelReduction(t, t')
