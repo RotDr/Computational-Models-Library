@@ -1,17 +1,5 @@
 include "LNParallelReduction.dfy"
 
-lemma Rule2Diamond(t1:RefLambdaTerm, t2:RefLambdaTerm, x:Id, t3:RefLambdaTerm, y:Id)
-    requires locallyClosed'(t1,1) && locallyClosed'(t2,1)
-    requires !(x in freeVarsSeq(t1)) && !(x in freeVarsSeq(t2))
-    requires refParallelReduction(open'(0,x,t1),t3)
-    requires refParallelReduction(open'(0,x,t2),t3)
-    ensures refParallelReduction(open'(0,y,t1),open'(0,y,close(t3,x)))
-    ensures refParallelReduction(open'(0,y,t2),open'(0,y,close(t3,x)))
-{
-    ParBodyViaClose(t1,t3,x,y);
-    ParBodyViaClose(t2,t3,x,y);
-}
-
 lemma Rule3Diamond(t:RefLambdaTerm,t1:RefLambdaTerm,t2:RefLambdaTerm)
     requires locallyClosed(t)
     requires refRule3(t,t1)
@@ -148,7 +136,8 @@ lemma MixedRulesDiamond(t:RefLambdaTerm, t1:RefLambdaTerm, t2:RefLambdaTerm)
                         ensures refParallelReduction(open'(0,y,t2a'),open'(0,y,t3a')) && 
                             refParallelReduction(open'(0,y,u),open'(0,y,t3a'))
                     {
-                        Rule2Diamond(u,t2a',x,opened_t3a',y);
+                        ParBodyViaClose(u,opened_t3a',x,y);
+                        ParBodyViaClose(t2a',opened_t3a',x,y);
                     }
                     Rule2Intro(u,t3a',[]);
                     Rule2Intro(t2a',t3a',[]);
@@ -171,17 +160,6 @@ lemma MixedRulesDiamond(t:RefLambdaTerm, t1:RefLambdaTerm, t2:RefLambdaTerm)
         }
 }
 
-lemma Rule1Diamond(t:RefLambdaTerm, t1:RefLambdaTerm, t2:RefLambdaTerm)
-    requires refRule1(t,t1)
-    requires refRule1(t,t2)
-    ensures exists t3:RefLambdaTerm :: refParallelReduction(t1,t3) && refParallelReduction(t2,t3)
-{
-    assert t==t1; 
-    assert t==t2;
-    var t3:=t;
-    assert refParallelReduction(t1,t3) && refParallelReduction(t2,t3);
-}
-
 lemma ParDiamond(t:RefLambdaTerm, t1:RefLambdaTerm, t2:RefLambdaTerm)
     requires locallyClosed(t)
     requires refParallelReduction(t,t1)
@@ -192,9 +170,11 @@ lemma ParDiamond(t:RefLambdaTerm, t1:RefLambdaTerm, t2:RefLambdaTerm)
     match t 
         case BoundVar(_)=>{assert false;}
         case FreeVar(_)=>{
-            assert refRule1(t,t1);
-            assert refRule1(t,t2);
-            Rule1Diamond(t,t1,t2);
+            assert t==t1; 
+            assert t==t2;
+            var t3:=t;
+            assert refParallelReduction(t1,t3) && refParallelReduction(t2,t3);
+
         }
         case App(ta,tb)=>
         {
@@ -270,7 +250,7 @@ lemma ParDiamond(t:RefLambdaTerm, t1:RefLambdaTerm, t2:RefLambdaTerm)
                             assert !(x in freeVarsSeq(t1')) && !(x in freeVarsSeq(t2'));
                             
                             assert locallyClosed(RefLambda(t'));
-                            OpeningIsClosed(t',x);
+                            IfWeForgetThatIsOpenedItThenIsClosed(t,x);
 
                             assert forall y:Id :: !(y in L1) ==> refParallelReduction(open'(0,y,t'),open'(0,y,t1'));
                             assert forall y:Id :: !(y in L2) ==> refParallelReduction(open'(0,y,t'),open'(0,y,t2'));
@@ -287,7 +267,8 @@ lemma ParDiamond(t:RefLambdaTerm, t1:RefLambdaTerm, t2:RefLambdaTerm)
                                 ensures refParallelReduction(open'(0,y,t1'),open'(0,y,t3)) &&
                                  refParallelReduction(open'(0,y,t2'),open'(0,y,t3))
                             {
-                                Rule2Diamond(t1',t2',x,t3',y);
+                                ParBodyViaClose(t1',t3',x,y);
+                                ParBodyViaClose(t2',t3',x,y);
                             }
                             Rule2Intro(t1',t3,[]);
                             Rule2Intro(t2',t3,[]);
@@ -303,7 +284,7 @@ lemma ReductBodyIsClosed(t:RefLambdaTerm, t1:RefLambdaTerm, x:Id)
     requires refParallelReduction(open'(0,x,t), open'(0,x,t1))
     ensures  locallyClosed'(t1,1)
 {
-    OpeningIsClosed'(t,x,0);
+    IfWeForgetThatIsOpenedItThenIsClosed'(t,x,1);
     ParReductionPreservesLocallyClosed(open'(0,x,t), open'(0,x,t1));
     BodyUp'(t1,x,0);
 }

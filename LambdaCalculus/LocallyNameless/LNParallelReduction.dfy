@@ -68,7 +68,8 @@ ghost predicate refRule3(t1:RefLambdaTerm,t2:RefLambdaTerm)
                 assert forall x:Id:: refLHeight(t1a')==refLHeight(open'(0,x,t1a'));
                 assert refLHeight(t1a')<refLHeight(t1);
                     (
-                   exists L:seq<Id>,t1':RefLambdaTerm,t2':RefLambdaTerm::t2==opening(t1',0,t2') && refParallelReduction(t2a,t2') &&  allUnique(L) && (forall x:Id::!(x in L)==>
+                   exists L:seq<Id>,t1':RefLambdaTerm,t2':RefLambdaTerm::t2==opening(t1',0,t2') 
+                   && refParallelReduction(t2a,t2') &&  allUnique(L) && (forall x:Id::!(x in L)==>
                     refParallelReduction(open'(0,x,t1a'),open'(0,x,t1')) 
                         )
                 )
@@ -127,7 +128,7 @@ lemma refParaReductionReflexive(t:RefLambdaTerm)
             forall x:Id | !(x in freeVarsSeq(t'))
             ensures refParallelReduction(open'(0,x,t'),open'(0,x,t'))
             {
-                OpeningIsClosed(t',x);
+                IfWeForgetThatIsOpenedItThenIsClosed(t,x);
                 refParaReductionReflexive(open'(0,x,t'));
             }
             assert forall x:Id::!(x in freeVarsSeq(t'))==> refParallelReduction(open'(0,x,t'),open'(0,x,t'));
@@ -143,7 +144,7 @@ lemma ParBodyViaClose(t:RefLambdaTerm, t':RefLambdaTerm, x:Id, y:Id)
     decreases refLHeight(t)
     ensures  refParallelReduction(open'(0,y,t), open'(0,y,close(t',x)))
 {
-    OpeningIsClosed'(t,x,0);
+    IfWeForgetThatIsOpenedItThenIsClosed'(t,x,1);
     assert locallyClosed(open'(0,x,t));
     ParReductionPreservesLocallyClosed(open'(0,x,t), t');
     assert locallyClosed(t');

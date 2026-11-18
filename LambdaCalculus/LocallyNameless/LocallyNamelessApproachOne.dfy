@@ -109,4 +109,16 @@ function refSubstitution (t:RefLambdaTerm,l_count:nat,t':RefLambdaTerm): RefLamb
         case RefLambda(t1)=>RefLambda(refSubstitution(t1,l_count+1,t'))
 
 }
+predicate isRefReadyForNegativeShift(t:RefLambdaTerm,bytes:nat)
+{
+    isRefReadyForNegativeShift'(t,0,bytes)
+}
+predicate isRefReadyForNegativeShift'(t:RefLambdaTerm,l_count:nat,bytes:nat)
+{
+    match t 
+        case FreeVar(_)=> true 
+        case BoundVar(ref)=> ref<l_count || ref>=l_count+bytes 
+        case RefLambda(t')=> isRefReadyForNegativeShift'(t',l_count+1, bytes)
+        case App(t1,t2)=> isRefReadyForNegativeShift'(t1,l_count,bytes) && isRefReadyForNegativeShift'(t2,l_count,bytes)
+}
 

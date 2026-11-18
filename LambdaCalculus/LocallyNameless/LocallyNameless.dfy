@@ -12,6 +12,7 @@ predicate locallyClosed'(t:RefLambdaTerm,l_count:nat)
         case RefLambda(t')=> locallyClosed'(t',l_count+1)
         case App(t1,t2)=> locallyClosed'(t1,l_count) && locallyClosed'(t2,l_count)
 }
+
 ghost predicate locallyClosedCanon(t:RefLambdaTerm)
     decreases refLHeight(t)
 {
@@ -114,18 +115,6 @@ function refLHeight(t:RefLambdaTerm) :nat
         case RefLambda(t')=> 1+refLHeight(t')
         case App(t1,t2)=> 1+refLHeight(t1) + refLHeight(t2)
 }
-predicate isRefReadyForNegativeShift(t:RefLambdaTerm,bytes:nat)
-{
-    isRefReadyForNegativeShift'(t,0,bytes)
-}
-predicate isRefReadyForNegativeShift'(t:RefLambdaTerm,l_count:nat,bytes:nat)
-{
-    match t 
-        case FreeVar(_)=> true 
-        case BoundVar(ref)=> ref<l_count || ref>=l_count+bytes 
-        case RefLambda(t')=> isRefReadyForNegativeShift'(t',l_count+1, bytes)
-        case App(t1,t2)=> isRefReadyForNegativeShift'(t1,l_count,bytes) && isRefReadyForNegativeShift'(t2,l_count,bytes)
-}
 
 
 predicate refAlpha(t1:RefLambdaTerm,t2:RefLambdaTerm)
@@ -146,7 +135,7 @@ function fromLambdaToRef'(t:LambdaTerm,ids:seq<Id>): RefLambdaTerm
         case Lambda(x,t') => RefLambda(fromLambdaToRef'(t',ids+[x]))
         case Var(x) =>(  match findId(ids,x)
                             case None=> FreeVar(x)
-                            case Some(refId) => BoundVar(refId)
+                            case Some(refId) => BoundVar(|ids| - 1 - refId)
         )
         case Application(t1,t2) => App(fromLambdaToRef'(t1,ids),fromLambdaToRef'(t2,ids))
                                
@@ -200,21 +189,10 @@ function fromRefToLambda'(t:RefLambdaTerm,ids:seq<Id>,lambda_names:seq<Id>):Lamb
         )
         case FreeVar(x)=> Var(x)
         case BoundVar(ref) =>(
-             Var(lambda_names[ref]) )
-}
-
-
-
-predicate isAbstraction(t:RefLambdaTerm)
-{
-    match t 
-        case RefLambda(_) => true 
-        case _ => false 
+             Var(lambda_names[|lambda_names| - 1 - ref]) )
 }
 
 function open(t:RefLambdaTerm): (RefLambdaTerm,Id)
-    // requires isAbstraction(t)
-    // ensures locallyClosed(open(t).t)
     ensures var (t',_):=open(t);
     refLHeight(t)==refLHeight(t')
 {
@@ -224,17 +202,14 @@ function open(t:RefLambdaTerm): (RefLambdaTerm,Id)
     (open'(0,new_id,t),new_id)
 }
 function open'(depth:nat,new_id:Id,t:RefLambdaTerm) :RefLambdaTerm
-    // requires locallyClosed'(t,depth)
     decreases t
     ensures var t':=open'(depth,new_id,t);
     refLHeight(t)==refLHeight(t')
-    // ensures locallyClosed'(open'(depth,new_id,t),depth-1)
+
 {
     match t 
         case FreeVar(_) => t 
-        case BoundVar(x) => if depth==x then 
-        // assert locallyClosed'(FreeVar(new_id),depth-1);
-        FreeVar(new_id) else BoundVar(x) 
+        case BoundVar(x) => if depth==x then FreeVar(new_id) else BoundVar(x) 
         case RefLambda(t')=> RefLambda(open'(depth+1,new_id,t'))
         case App(t1,t2) =>  App(open'(depth,new_id,t1),open'(depth,new_id,t2))
 }
@@ -323,15 +298,6 @@ predicate isRefAppLambda(t:RefLambdaTerm)
         case _=> false
 }
 
-function numberOfRedexes(t:RefLambdaTerm):nat 
-{
-    match t 
-        case FreeVar(_)=> 0
-        case BoundVar(_)=> 0
-        case RefLambda(t')=>numberOfRedexes(t')
-        case App(t1,t2) => if isRefAppLambda(t) then 1+numberOfRedexes(t1)+numberOfRedexes(t2) 
-                                else numberOfRedexes(t1)+numberOfRedexes(t2)
-}
 
 lemma RefNoVariableToReplace(t:RefLambdaTerm,x:Id,t':RefLambdaTerm)
     requires !(x in freeVarsSeq(t))
@@ -391,76 +357,8 @@ lemma LocallyClosedAtDifferentLevels(t:RefLambdaTerm,x:nat,y:nat)
 
 }
 
-lemma OpeningIsClosed(t:RefLambdaTerm,x:Id)
-    requires locallyClosed(RefLambda(t))
-    ensures locallyClosed(open'(0,x,t))
 
-{
-    OpeningIsClosed'(t,x,0);
 
-}
-lemma OpeningIsClosed'(t:RefLambdaTerm,x:Id,depth:nat)
-    requires locallyClosed'(t,depth+1)
-    ensures locallyClosed'(open'(depth,x,t),depth);
-
-{
-    match t 
-        case FreeVar(_)=>{}
-        case BoundVar(ref_id)=>{
-            if (ref_id==depth)
-            {
-                assert open'(depth,x,t)==FreeVar(x);
-            }
-            else
-            {
-
-            }
-        }
-        case RefLambda(t')=>
-        {
-            OpeningIsClosed'(t',x,depth+1);
-        }
-        case App(t1,t2)=>
-        {
-            OpeningIsClosed'(t1,x,depth);
-            OpeningIsClosed'(t1,x,depth);
-        }
-    
-}
-// lemma OpensRetainsFreeUp(t:RefLambdaTerm,t':RefLambdaTerm,x:Id)
-//     requires !(x in freeVarsSeq(t)) && !(x in freeVarsSeq(t'))
-//     requires freeVarsSeq(open'(0,x,t))==freeVarsSeq(open'(0,x,t'))
-//     ensures freeVarsSeq(t)==freeVarsSeq(t')
-// {
-//     OpensRetainsFreeUp'(t,t',x,0,0);
-// }
-
-// lemma OpensRetainsFreeUp'(t:RefLambdaTerm,t':RefLambdaTerm,x:Id,depth1:nat,depth2:nat)
-//     requires !(x in freeVarsSeq(t)) && !(x in freeVarsSeq(t'))
-//     requires freeVarsSeq(open'(depth1,x,t))==freeVarsSeq(open'(depth2,x,t'))
-//     ensures freeVarsSeq(t)==freeVarsSeq(t')
-// {
-//     match t 
-//         case FreeVar(_) =>
-//         {
-//             assert open'(depth1,x,t)==t;
-
-           
-//         }
-//         case BoundVar(ref1)=>
-//         {
-//             assume false;
-//         }
-//         case App(t1,t2)=>
-//         {
-
-//         }
-//         case RefLambda(t1)=>
-//         {
-
-//         }
-//     assume false;
-// }
 lemma RefSubsitutionClosure'(t:RefLambdaTerm,x:Id,t':RefLambdaTerm,depth:nat)
     requires locallyClosed'(t,depth) 
     requires locallyClosed'(t',depth)
@@ -489,51 +387,7 @@ lemma RefSubsitutionClosure'(t:RefLambdaTerm,x:Id,t':RefLambdaTerm,depth:nat)
         }
 }
 
-lemma OpeningMaintainsNumberOfRedexes(t:RefLambdaTerm)
-    ensures var (opened_t,_):=open(t);
-    numberOfRedexes(t)==numberOfRedexes(opened_t)
-{
-    var ids:=freeVarsSeq(t);
-    var new_id:=addAnUniqueId(ids)[0];
-    OpeningMaintainsNumberOfRedexes'(t,new_id,0);
-}
-lemma OpeningMaintainsNumberOfRedexes'(t:RefLambdaTerm,new_id:Id,depth:nat)
-    ensures var opened_t:=open'(depth,new_id,t);
-    numberOfRedexes(t)==numberOfRedexes(opened_t)
-{
-    var opened_t:=open'(depth,new_id,t);
-    match t 
-        case FreeVar(x) =>
-        {
-            assert t==opened_t;
-        }
-        case BoundVar(ref_id) =>
-        {
-            if (ref_id==depth)
-            {
-                assert opened_t==FreeVar(new_id);
-                assert numberOfRedexes(opened_t)==0;
-            }
-            else 
-            {
-                assert t==opened_t;
-            }
-        }
-        case App(t1,t2) =>
-        {
-            OpeningMaintainsNumberOfRedexes'(t2,new_id,depth);
-            OpeningMaintainsNumberOfRedexes'(t1,new_id,depth);
 
-            if isRefAppLambda(t) 
-            {
-                assert isRefAppLambda(opened_t);
-            }
-        }
-        case  RefLambda(t')=>
-        {
-            OpeningMaintainsNumberOfRedexes'(t',new_id,depth+1);
-        }
-}
 lemma LocallyClosedIsNotOpened(t:RefLambdaTerm)
     requires locallyClosed(t) 
     ensures var (t',_):=open(t); t'==t
@@ -607,58 +461,6 @@ lemma SubstitutionAndOpening(t:RefLambdaTerm,x:Id,y:Id,t':RefLambdaTerm,depth:na
         }
 }
 
-function refBetaReduction(t:RefLambdaTerm) : RefLambdaTerm
-    requires isRefAppLambda(t)
-    
-{
-    match t 
-        case App(t1,t2) => (match t1
-                                case RefLambda(t1') => opening(t1',0,t2)
-        )
-}
-
-function refBetaReductionStep(t:RefLambdaTerm,choice:nat):RefLambdaTerm
-    requires numberOfRedexes(t)>choice 
-    decreases refLHeight(t)
-{
-    match t 
-        case App(t1,t2) => (
-            var n1:=numberOfRedexes(t1);
-            var n2:=numberOfRedexes(t2);
-            if isRefAppLambda(t) then 
-            (
-                if choice==0 then 
-                    refBetaReduction(t)
-                else 
-                    if (choice<=n1) then 
-                        App(refBetaReductionStep(t1,choice-1),t2)
-                    else 
-                        assert choice>n1;
-                        assert choice<numberOfRedexes(t);
-                        assert n2+n1+1==numberOfRedexes(t); 
-                        App(t1,refBetaReductionStep(t2,choice-1-n1))
-            )
-            else 
-            (
-                if (choice<n1) then 
-                        App(refBetaReductionStep(t1,choice),t2)
-                    else 
-                        assert choice>=n1;
-                        assert choice<numberOfRedexes(t);
-                        assert n2+n1==numberOfRedexes(t); 
-                        App(t1,refBetaReductionStep(t2,choice-n1))
-            )
-            )
-        case RefLambda(t')=>
-        (
-            var (opened_t',x):=open(t');
-            assert refLHeight(t')<refLHeight(t);
-            assert refLHeight(t')==refLHeight(opened_t');
-            OpeningMaintainsNumberOfRedexes(t');
-            RefLambda(close(refBetaReductionStep(opened_t',choice),x))
-        ) 
-
-}
 
 lemma SubstitutionIntro(t:RefLambdaTerm,x:Id,t':RefLambdaTerm,depth:nat)
     requires !(x in freeVarsSeq(t))

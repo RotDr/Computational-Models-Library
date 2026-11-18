@@ -39,7 +39,6 @@ lemma ParallelPathTransitive(t1:RefLambdaTerm, t2:RefLambdaTerm, t3:RefLambdaTer
 {
     var n1:nat:|isThereAParallelPath'(t1,t2,n1);
     var n2:nat:|isThereAParallelPath'(t2,t3,n2);
-    var n3:=n1+n2;
     ParallelPathTransitive'(t1,t2,t3,n1,n2);
 }
 
@@ -98,38 +97,6 @@ lemma CloseOfClosedIsBody'(t:RefLambdaTerm, x:Id, depth:nat)
         case RefLambda(t1) => { CloseOfClosedIsBody'(t1,x,depth+1); }
 }
 
-lemma CloseOfClosedIsBody(t:RefLambdaTerm, x:Id)
-    requires locallyClosed(t)
-    ensures  locallyClosed'(close(t,x),1)
-{
-    CloseOfClosedIsBody'(t,x,0);
-}
-
-
-
-lemma ParallelPathPreservesClosed'(t1:RefLambdaTerm, t2:RefLambdaTerm, n:nat)
-    requires locallyClosed(t1)
-    requires isThereAParallelPath'(t1,t2,n)
-    ensures  locallyClosed(t2)
-    decreases n
-{
-    if n>0
-    {
-        var t':RefLambdaTerm :| refParallelReduction(t1,t') && isThereAParallelPath'(t',t2,n-1);
-        ParReductionPreservesLocallyClosed(t1,t');
-        ParallelPathPreservesClosed'(t',t2,n-1);
-    }
-}
-
-lemma ParallelPathPreservesClosed(t1:RefLambdaTerm, t2:RefLambdaTerm)
-    requires locallyClosed(t1)
-    requires isThereAParallelPath(t1,t2)
-    ensures  locallyClosed(t2)
-{
-    var n:nat :| isThereAParallelPath'(t1,t2,n);
-    ParallelPathPreservesClosed'(t1,t2,n);
-}
-
 
 ghost predicate betaRuleRedex(t1:RefLambdaTerm, t2:RefLambdaTerm)
 {
@@ -161,7 +128,7 @@ ghost predicate betaRuleApp2(t1:RefLambdaTerm, t2:RefLambdaTerm)
 }
 
 ghost predicate betaRuleAbs(t1:RefLambdaTerm, t2:RefLambdaTerm)
-    decreases refLHeight(t1), 0
+    decreases refLHeight(t1),0 
 {
     match t1
         case RefLambda(t1') =>
@@ -174,7 +141,7 @@ ghost predicate betaRuleAbs(t1:RefLambdaTerm, t2:RefLambdaTerm)
 }
 
 ghost predicate refBeta(t1:RefLambdaTerm, t2:RefLambdaTerm)
-    decreases refLHeight(t1), 1
+    decreases refLHeight(t1)
 {
     betaRuleRedex(t1,t2) || betaRuleApp1(t1,t2) || betaRuleApp2(t1,t2) || betaRuleAbs(t1,t2)
 }
@@ -375,7 +342,6 @@ lemma RefBetaPathTransitive(t1:RefLambdaTerm, t2:RefLambdaTerm, t3:RefLambdaTerm
 {
     var n1:nat:|refBetaPath'(t1,t2,n1);
     var n2:nat:|refBetaPath'(t2,t3,n2);
-    var n3:=n1+n2;
     RefBetaPathTransitive'(t1,t2,t3,n1,n2);
 }
 lemma RefBetaPathExtension(t1:RefLambdaTerm,t2:RefLambdaTerm,t2':RefLambdaTerm,n:nat)
@@ -610,7 +576,6 @@ lemma ParallelImpliesRefBetaPath(t1:RefLambdaTerm, t2:RefLambdaTerm)
     requires locallyClosed(t1) && refParallelReduction(t1,t2)
     decreases refLHeight(t1)
     ensures  refBetaPath(t1,t2)
-    decreases refLHeight(t1)
 {
     if (refRule1(t1,t2))
     {
@@ -628,7 +593,7 @@ lemma ParallelImpliesRefBetaPath(t1:RefLambdaTerm, t2:RefLambdaTerm)
                 ensures refBetaPath(open'(0,x,t1'), open'(0,x,t2'))
                 {
                    
-                    OpeningIsClosed(t1', x); 
+                    IfWeForgetThatIsOpenedItThenIsClosed(t1, x); 
                     ParallelImpliesRefBetaPath(open'(0,x,t1'), open'(0,x,t2'));
                 }
             RefBetaPathAbs(t1', t2', L);
@@ -649,7 +614,7 @@ lemma ParallelImpliesRefBetaPath(t1:RefLambdaTerm, t2:RefLambdaTerm)
                 forall x:Id | !(x in L)
                     ensures refBetaPath(open'(0,x,t1a'), open'(0,x,t2a'))
                 {
-                    OpeningIsClosed(t1a', x);
+                    IfWeForgetThatIsOpenedItThenIsClosed(RefLambda(t1a'), x);
                     assert refLHeight(t1a')<refLHeight(t1);
                     ParallelImpliesRefBetaPath(open'(0,x,t1a'), open'(0,x,t2a'));
                 }
